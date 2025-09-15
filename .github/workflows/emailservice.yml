@@ -208,8 +208,9 @@ jobs:
     - name: Update Helm values
       run: |
         cd microservices-chart
-        yq eval ".services.${{ env.SERVICE_NAME }}.image.repository = \"${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}\"" -i values.yaml
-        yq eval ".services.${{ env.SERVICE_NAME }}.image.tag = \"${{ github.sha }}\"" -i values.yaml
+        ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+        yq e ".services.[\"$SERVICE_NAME\"].image.repository = \"$ECR_REGISTRY/$ECR_REPOSITORY\"" -i values.yaml
+        yq e ".services.[\"$SERVICE_NAME\"].image.tag = \"${{ github.sha }}\"" -i values.yaml
     - name: Commit and push changes
       run: |
         git config --global user.email "action@github.com"
