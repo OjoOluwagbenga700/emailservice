@@ -44,3 +44,5 @@ COPY . .
 
 EXPOSE 8080
 ENTRYPOINT [ "python", "email_server.py" ]
+
+# End of Dockerfile
