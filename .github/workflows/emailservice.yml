@@ -1,4 +1,4 @@
-name: emailservice Pipeline
+name: email Pipeline
 
 on:
   pull_request:
