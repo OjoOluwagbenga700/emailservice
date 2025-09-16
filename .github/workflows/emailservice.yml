@@ -1,4 +1,4 @@
-name: emailservice pipeline
+name: email_service pipeline
 
 on:
   pull_request:
@@ -146,7 +146,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -180,44 +179,49 @@ jobs:
     needs: package
     if: github.ref == 'refs/heads/main'
     steps:
-    - name: Generate GitHub App Token
-      id: generate_token
-      uses: tibdex/github-app-token@v2
-      with:
-        app_id: ${{ env.APP_ID }}
-        private_key: ${{ env.PRIVATE_KEY }}
-    - name: Checkout helm repository
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ env.HELM_REPO }}
-        token: ${{ steps.generate_token.outputs.token }}
-        ref: feature/boutique-helm
-    - name: Install yq
-      run: |
-        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-        sudo chmod +x /usr/local/bin/yq
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    - name: Update Helm values
-      run: |
-        cd microservices-chart
-        ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-        yq e ".services.[\"$SERVICE_NAME\"].image.repository = \"$ECR_REGISTRY/$ECR_REPOSITORY\"" -i values.yaml
-        yq e ".services.[\"$SERVICE_NAME\"].image.tag = \"${{ github.sha }}\"" -i values.yaml
-    - name: Commit and push changes
-      run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Actions"
-        git add microservices-chart/values.yaml
-        git commit -m "Update ${{ env.SERVICE_NAME }} image to ${{ github.sha }}"
-        git push origin feature/boutique-helm
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ env.APP_ID }}
+          private_key: ${{ env.PRIVATE_KEY }}
+      
+      - name: Checkout helm repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HELM_REPO }}
+          token: ${{ steps.generate_token.outputs.token }}
+          ref: feature/boutique-helm
+      
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Update Helm values
+        run: |
+          cd microservices-chart
+          yq eval ".services.${{ env.SERVICE_NAME }}.image.repository = \"${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}\"" -i values.yaml
+          yq eval ".services.${{ env.SERVICE_NAME }}.image.tag = \"${{ github.sha }}\"" -i values.yaml
+      
+      - name: Commit and push changes
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Actions"
+          git add microservices-chart/values.yaml
+          git commit -m "Update ${{ env.SERVICE_NAME }} image to ${{ github.sha }}"
+          git push origin feature/boutique-helm
 
   trigger-deploy:
     runs-on: ubuntu-latest
